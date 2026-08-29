@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -112,26 +113,48 @@
       recognition.interimResults = false;
       recognition.lang = "en-US";
 
-      recognition.onresult = function(event) {
+      recognition.onresult = async function(event) {
         const text = event.results[0][0].transcript;
 
-        message.textContent = "You said: " + text;
+        message.textContent = "You: " + text;
 
-        // Temporary response
-        const response = "I heard you say " + text;
+        try {
+          message.textContent = "Justin AI is thinking...";
 
-        setTimeout(() => {
-          message.textContent = response;
+          const response = await fetch("/api/chat", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              message: text
+            })
+          });
 
-          const speech = new SpeechSynthesisUtterance(response);
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.error || "Request failed");
+          }
+
+          message.textContent = data.reply;
+
+          const speech = new SpeechSynthesisUtterance(data.reply);
           speech.rate = 1;
           speech.pitch = 1;
 
+          window.speechSynthesis.cancel();
           window.speechSynthesis.speak(speech);
-        }, 500);
+
+        } catch (error) {
+          console.error(error);
+          message.textContent =
+            "Something went wrong connecting to Justin AI.";
+        }
       };
 
-      recognition.onerror = function() {
+      recognition.onerror = function(event) {
+        console.error(event);
         message.textContent = "I couldn't hear you. Try again.";
       };
     }
@@ -144,11 +167,19 @@
       }
 
       message.textContent = "🎤 Listening...";
-      recognition.start();
+
+      try {
+        recognition.start();
+      } catch (error) {
+        console.log(error);
+      }
     };
 
     stopButton.onclick = function() {
-      if (recognition) recognition.stop();
+      if (recognition) {
+        recognition.stop();
+      }
+
       window.speechSynthesis.cancel();
       message.textContent = "Stopped.";
     };
@@ -156,3 +187,4 @@
 
 </body>
 </html>
+```
