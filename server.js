@@ -1,3 +1,4 @@
+```javascript
 import express from "express";
 
 const app = express();
@@ -11,33 +12,39 @@ app.post("/api/chat", async (req, res) => {
     const userMessage = req.body.message;
 
     if (!userMessage) {
-      return res.status(400).json({ error: "No message provided" });
+      return res.status(400).json({
+        error: "No message provided"
+      });
     }
 
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
       return res.status(500).json({
-        error: "GEMINI_API_KEY is not configured"
+        error: "GEMINI_API_KEY is missing in Render"
       });
     }
 
     const response = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=" +
-        apiKey,
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent",
       {
         method: "POST",
+
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          "x-goog-api-key": apiKey
         },
+
         body: JSON.stringify({
           contents: [
             {
+              role: "user",
               parts: [
                 {
                   text:
-                    "You are Justin AI. Speak naturally, casually, and warmly. " +
-                    "You are an AI version of Justin. Keep responses conversational. " +
+                    "You are Justin AI, an AI version of Justin. " +
+                    "Talk naturally, casually, warmly, and conversationally. " +
+                    "Keep answers reasonably short because this is a voice conversation.\n\n" +
                     "User says: " +
                     userMessage
                 }
@@ -50,24 +57,34 @@ app.post("/api/chat", async (req, res) => {
 
     const data = await response.json();
 
+    console.log("Gemini response:", JSON.stringify(data));
+
     if (!response.ok) {
-      console.error(data);
-      return res.status(500).json({
-        error: "Gemini API request failed"
+      return res.status(response.status).json({
+        error:
+          data?.error?.message ||
+          "Gemini API request failed"
       });
     }
 
     const reply =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text ||
-      "Sorry, I didn't get a response.";
+      data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
-    res.json({ reply });
+    if (!reply) {
+      return res.status(500).json({
+        error: "Gemini returned no text response"
+      });
+    }
+
+    res.json({
+      reply: reply
+    });
 
   } catch (error) {
-    console.error(error);
+    console.error("SERVER ERROR:", error);
 
     res.status(500).json({
-      error: "Server error"
+      error: error.message || "Server error"
     });
   }
 });
@@ -75,3 +92,4 @@ app.post("/api/chat", async (req, res) => {
 app.listen(PORT, () => {
   console.log(`Justin AI running on port ${PORT}`);
 });
+```
